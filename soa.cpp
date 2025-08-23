@@ -11,6 +11,9 @@ template <typename... Types>
 class SOAVector
 {
 public:
+    /*!
+     * Helper struct to map template argument index to the corresponding type.
+     */
     template <std::size_t i, typename T, typename... Ts>
     struct IndexToType : IndexToType<i-1, Ts...>
     {
@@ -19,6 +22,12 @@ public:
 
     template <typename T, typename... Ts>
     struct IndexToType<0, T, Ts...> { T value; };
+
+    /*!
+     * The value type of the N'th template argument.
+     */
+    template <std::size_t i>
+    using value_type = decltype(IndexToType<i, Types...>::value);
 
     using size_type = std::size_t;
 
@@ -156,70 +165,66 @@ public:
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) * data() noexcept
+    value_type<TypeIndex> * data() noexcept
     {
-        using ReturnType = decltype(IndexToType<TypeIndex, Types...>::value);
-        return reinterpret_cast<ReturnType *>(array_ptrs_[TypeIndex]);
+        return reinterpret_cast<value_type<TypeIndex> *>(array_ptrs_[TypeIndex]);
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) const * data() const noexcept
+    value_type<TypeIndex> const * data() const noexcept
     {
-        using ReturnType = decltype(IndexToType<TypeIndex, Types...>::value);
-        return reinterpret_cast<ReturnType const *>(array_ptrs_[TypeIndex]);
+        return reinterpret_cast<value_type<TypeIndex> const *>(array_ptrs_[TypeIndex]);
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) & get(size_type index) noexcept
+    value_type<TypeIndex> & get(size_type index) noexcept
     {
         assert(index < size_);
         return *(this->data<TypeIndex>() + index);
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) const & get(size_type index) const noexcept
+    value_type<TypeIndex> const & get(size_type index) const noexcept
     {
         assert(index < size_);
         return *(this->data<TypeIndex>() + index);
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) & front() noexcept
+    value_type<TypeIndex> & front() noexcept
     {
         return this->get<TypeIndex>(0);
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) const & front() const noexcept
+    value_type<TypeIndex> const & front() const noexcept
     {
         return this->get<TypeIndex>(0);
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) & back() noexcept
+    value_type<TypeIndex> & back() noexcept
     {
         return this->get<TypeIndex>(this->size_ - 1);
     }
 
     template<size_type TypeIndex>
-    decltype(IndexToType<TypeIndex, Types...>::value) const & back() const noexcept
+    value_type<TypeIndex> const & back() const noexcept
     {
         return this->get<TypeIndex>(this->size_ - 1);
     }
 
 
     template<size_type TypeIndex>
-    std::span<decltype(IndexToType<TypeIndex, Types...>::value) const> span() const noexcept
+    std::span<value_type<TypeIndex> const> span() const noexcept
     {
-        using ReturnType = decltype(IndexToType<TypeIndex, Types...>::value);
-        return std::span<ReturnType const>(this->data<TypeIndex>(), this->size_);
+        return std::span<value_type<TypeIndex> const>(this->data<TypeIndex>(), this->size_);
     }
 
     template<size_type TypeIndex>
-    std::span<decltype(IndexToType<TypeIndex, Types...>::value)> span() noexcept
+    std::span<value_type<TypeIndex>> span() noexcept
     {
-        using ReturnType = decltype(IndexToType<TypeIndex, Types...>::value);
-        return std::span<ReturnType>(this->data<TypeIndex>(), this->size_);
+        return std::span<value_type<TypeIndex>>(this->data<TypeIndex>(), this->size_);
     }
 
     void clear()
@@ -356,8 +361,7 @@ private:
         auto const [new_offsets, total_num_bytes] = getArrayOffsetsAndAllocationSize(new_capacity);
 
         // Allocate memory aligned to the first type.
-        using FirstType = decltype(IndexToType<0, Types...>::value);
-        char * const new_data_ptr = new (std::align_val_t(alignof(FirstType))) char[total_num_bytes];
+        char * const new_data_ptr = new (std::align_val_t(alignof(value_type<0>))) char[total_num_bytes];
 
         std::array<char *, sizeof...(Types)> new_array_ptrs{};
         for (std::size_t array_index = 0; array_index < new_array_ptrs.size(); ++array_index)
