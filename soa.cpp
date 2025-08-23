@@ -75,13 +75,13 @@ public:
     }
 
     SOAVector(SOAVector && other):
-        array_ptrs_(std::move(other.array_ptrs_)),
-        capacity_(other.capacity_),
-        size_(other.size_)
+        array_ptrs_(other.array_ptrs_),
+        size_(other.size_),
+        capacity_(other.capacity_)
     {
         std::fill(other.array_ptrs_.begin(), other.array_ptrs_.end(), nullptr);
-        other.capacity_ = 0;
         other.size_ = 0;
+        other.capacity_ = 0;
     }
 
     ~SOAVector()
@@ -108,8 +108,13 @@ public:
 
     SOAVector<Types...> & operator=(SOAVector<Types...> const & other)
     {
-        this->clear();
+        if (&other == this)
+        {
+            // Avoid self assignment.
+            return *this;
+        }
 
+        this->clear();
         this->reserve(other.size());
 
         if (other.size() > 0)
@@ -133,6 +138,12 @@ public:
 
     SOAVector<Types...> & operator=(SOAVector<Types...> && other)
     {
+        if (&other == this)
+        {
+            // Avoid self assignment.
+            return *this;
+        }
+
         this->clear();
 
         if (capacity_ > 0)
@@ -314,8 +325,7 @@ private:
     template<typename T>
     static void deleteElement(char * const ptr)
     {
-        T * const original_obj_ptr = reinterpret_cast<T *>(ptr);
-        original_obj_ptr->~T();
+        reinterpret_cast<T *>(ptr)->~T();
     }
 
     template<typename T>
@@ -323,9 +333,7 @@ private:
     {
         for (char * it = first; it != last; it += sizeof(T))
         {
-            T * const original_obj_ptr = reinterpret_cast<T *>(it);
-            // Delete the previous object
-            original_obj_ptr->~T();
+            reinterpret_cast<T *>(it)->~T();
         }
     }
 
@@ -334,7 +342,7 @@ private:
     {
         for (char const * it = first; it != last; it += sizeof(T), dst_first += sizeof(T))
         {
-            T const * const original_obj_ptr = reinterpret_cast<T *>(it);
+            T const * const original_obj_ptr = reinterpret_cast<T const *>(it);
             // Create a new object in destination as a copy of original.
             new(dst_first) T(*original_obj_ptr);
         }
@@ -415,14 +423,15 @@ private:
 
     // Member variables:
     std::array<char *, sizeof...(Types)> array_ptrs_;
-    size_type size_ = 0;
-    size_type capacity_ = 0;
+    size_type size_;
+    size_type capacity_;
     static constexpr float growth_factor = 1.5;
 };
 
 int main()
 {
-    SOAVector<int16_t, std::string, double> vec;
+    using VecType = SOAVector<int16_t, std::string, double>;
+    VecType vec;
     vec.push_back(0, "zero", 1.23);
     vec.push_back(1, "one", 2.34);
     vec.push_back(2, "two", 3.45);
@@ -433,4 +442,13 @@ int main()
     {
         std::cout << "i=" << i << ": " << vec.get<0>(i) << ", " << vec.get<1>(i) << ", " << vec.get<2>(i) << "\n";
     }
+
+    VecType copy(vec);
+    VecType new_vec(std::move(vec));
+
+    VecType vec2;
+    vec.push_back(5, "five", 5.67);
+    new_vec = vec2;
+
+    vec2 = std::move(vec);
 }
