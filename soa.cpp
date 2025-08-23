@@ -35,8 +35,8 @@ public:
             (
                 (
                     defaultInitializeData<Types>(
-                        data_ + data_offsets_[type_index],
-                        data_ + data_offsets_[type_index] + size_ * sizeof(Types)),
+                        array_ptrs_[type_index],
+                        array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
                 ),
                 ...
@@ -54,9 +54,9 @@ public:
             (
                 (
                     copyData<Types>(
-                        other.data_ + other.data_offsets_[type_index],
-                        other.data_ + other.data_offsets_[type_index] + other.size_ * sizeof(Types),
-                        this->data_ + this->data_offsets_[type_index]),
+                        other.array_ptrs_[type_index],
+                        other.array_ptrs_[type_index] + other.size_ * sizeof(Types),
+                        this->array_ptrs_[type_index]),
                     ++type_index
                 ),
                 ...
@@ -66,12 +66,11 @@ public:
     }
 
     SOAVector(SOAVector && other):
-        data_(other.data_),
-        data_offsets_(other.data_offsets_),
+        array_ptrs_(std::move(other.array_ptrs_)),
         capacity_(other.capacity_),
         size_(other.size_)
     {
-        other.data_ = nullptr;
+        std::fill(other.array_ptrs_.begin(), other.array_ptrs_.end(), nullptr);
         other.capacity_ = 0;
         other.size_ = 0;
     }
@@ -88,14 +87,14 @@ public:
             (
                 (
                     deleteData<Types>(
-                        data_ + data_offsets_[type_index],
-                        data_ + data_offsets_[type_index] + size_ * sizeof(Types)),
+                        array_ptrs_[type_index],
+                        array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
                 ),
                 ...
             );
         }
-        delete[] data_;
+        delete[] array_ptrs_[0];
     }
 
     SOAVector<Types...> & operator=(SOAVector<Types...> const & other)
@@ -110,9 +109,9 @@ public:
             (
                 (
                     copyData<Types>(
-                        other.data_ + other.data_offsets_[type_index],
-                        other.data_ + other.data_offsets_[type_index] + other.size_ * sizeof(Types),
-                        this->data_ + this->data_offsets_[type_index]),
+                        other.array_ptrs_[type_index],
+                        other.array_ptrs_[type_index] + other.size_ * sizeof(Types),
+                        this->array_ptrs_[type_index]),
                     ++type_index
                 ),
                 ...
@@ -129,15 +128,14 @@ public:
 
         if (capacity_ > 0)
         {
-            delete[] data_;
+            delete[] array_ptrs_[0];
         }
 
-        data_ = other.data_;
-        data_offsets_ = other.data_offsets_;
+        array_ptrs_ = other.array_ptrs_;
         size_ = other.size_;
         capacity_ = other.capacity_;
 
-        other.data_ = nullptr;
+        std::fill(other.array_ptrs_.begin(), other.array_ptrs_.end(), nullptr);
         other.size_ = 0;
         other.capacity_ = 0;
     }
@@ -161,16 +159,14 @@ public:
     decltype(IndexToType<TypeIndex, Types...>::value) * data() noexcept
     {
         using ReturnType = decltype(IndexToType<TypeIndex, Types...>::value);
-        char * obj_ptr = data_ + data_offsets_[TypeIndex];
-        return reinterpret_cast<ReturnType *>(obj_ptr);
+        return reinterpret_cast<ReturnType *>(array_ptrs_[TypeIndex]);
     }
 
     template<size_type TypeIndex>
     decltype(IndexToType<TypeIndex, Types...>::value) const * data() const noexcept
     {
         using ReturnType = decltype(IndexToType<TypeIndex, Types...>::value);
-        char const * obj_ptr = data_ + data_offsets_[TypeIndex];
-        return reinterpret_cast<ReturnType const *>(obj_ptr);
+        return reinterpret_cast<ReturnType const *>(array_ptrs_[TypeIndex]);
     }
 
     template<size_type TypeIndex>
@@ -234,8 +230,8 @@ public:
             (
                 (
                     deleteData<Types>(
-                        data_ + data_offsets_[type_index],
-                        data_ + data_offsets_[type_index] + size_ * sizeof(Types)),
+                        array_ptrs_[type_index],
+                        array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
                 ),
                 ...
@@ -254,7 +250,7 @@ public:
         std::size_t type_index = 0;
         (
             (
-                createElement(data_ + data_offsets_[type_index] + size_ * sizeof(Types), std::forward<decltype(args)>(args)),
+                createElement(array_ptrs_[type_index] + size_ * sizeof(Types), std::forward<decltype(args)>(args)),
                 ++type_index
             ),
             ...
@@ -269,7 +265,7 @@ public:
         std::size_t type_index = 0;
         (
             (
-                deleteElement<Types>(data_ + data_offsets_[type_index] + (size_ - 1) * sizeof(Types)),
+                deleteElement<Types>(array_ptrs_[type_index] + (size_ - 1) * sizeof(Types)),
                 ++type_index
             ),
             ...
@@ -361,7 +357,13 @@ private:
 
         // Allocate memory aligned to the first type.
         using FirstType = decltype(IndexToType<0, Types...>::value);
-        char * const new_data = new (std::align_val_t(alignof(FirstType))) char[total_num_bytes];
+        char * const new_data_ptr = new (std::align_val_t(alignof(FirstType))) char[total_num_bytes];
+
+        std::array<char *, sizeof...(Types)> new_array_ptrs{};
+        for (std::size_t array_index = 0; array_index < new_array_ptrs.size(); ++array_index)
+        {
+            new_array_ptrs[array_index] = new_data_ptr + new_offsets[array_index];
+        }
 
         if (size_ > 0)
         {
@@ -370,9 +372,9 @@ private:
             (
                 (
                     moveData<Types>(
-                        data_ + data_offsets_[type_index],
-                        data_ + data_offsets_[type_index] + size_ * sizeof(Types),
-                        new_data + new_offsets[type_index]),
+                        array_ptrs_[type_index],
+                        array_ptrs_[type_index] + size_ * sizeof(Types),
+                        new_array_ptrs[type_index]),
                     ++type_index
                 ),
                 ...
@@ -381,10 +383,9 @@ private:
 
         if (capacity_ > 0)
         {
-            delete[] data_;
+            delete[] array_ptrs_[0];
         }
-        data_ = new_data;
-        data_offsets_ = std::move(new_offsets);
+        array_ptrs_ = std::move(new_array_ptrs);
         capacity_ = new_capacity;
     }
 
@@ -409,8 +410,7 @@ private:
     }
 
     // Member variables:
-    char * data_ = nullptr;
-    std::array<ptrdiff_t, sizeof...(Types)> data_offsets_;
+    std::array<char *, sizeof...(Types)> array_ptrs_;
     size_type size_ = 0;
     size_type capacity_ = 0;
     static constexpr float growth_factor = 1.5;
