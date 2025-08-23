@@ -55,7 +55,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    defaultInitializeElements<Types>(
+                    create_default_elements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
@@ -77,7 +77,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    copyElements<Types>(
+                    copy_elements<Types>(
                         other.array_ptrs_[type_index],
                         other.array_ptrs_[type_index] + other.size_ * sizeof(Types),
                         this->array_ptrs_[type_index]),
@@ -116,7 +116,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    deleteElements<Types>(
+                    delete_elements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
@@ -146,7 +146,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    copyElements<Types>(
+                    copy_elements<Types>(
                         other.array_ptrs_[type_index],
                         other.array_ptrs_[type_index] + other.size_ * sizeof(Types),
                         this->array_ptrs_[type_index]),
@@ -357,7 +357,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    deleteElements<Types>(
+                    delete_elements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
@@ -384,7 +384,7 @@ public:
         std::size_t type_index = 0;
         (
             (
-                createElement(array_ptrs_[type_index] + size_ * sizeof(Types), std::forward<decltype(args)>(args)),
+                create_element(array_ptrs_[type_index] + size_ * sizeof(Types), std::forward<decltype(args)>(args)),
                 ++type_index
             ),
             ...
@@ -402,7 +402,7 @@ public:
         std::size_t type_index = 0;
         (
             (
-                deleteElement<Types>(array_ptrs_[type_index] + (size_ - 1) * sizeof(Types)),
+                delete_element<Types>(array_ptrs_[type_index] + (size_ - 1) * sizeof(Types)),
                 ++type_index
             ),
             ...
@@ -444,7 +444,7 @@ private:
      *      be created.
      */
     template<typename T>
-    static void defaultInitializeElements(char * const first, char * const last)
+    static void create_default_elements(char * const first, char * const last)
     {
         for (char * it = first; it != last; it += sizeof(T))
         {
@@ -460,7 +460,7 @@ private:
      * @param value The value of the element.
      */
     template<typename T>
-    static void createElement(char * const ptr, T&& value)
+    static void create_element(char * const ptr, T&& value)
     {
         new(ptr) T(std::forward<T>(value));
     }
@@ -471,7 +471,7 @@ private:
      * @param ptr The pointer to the element.
      */
     template<typename T>
-    static void deleteElement(char * const ptr)
+    static void delete_element(char * const ptr)
     {
         reinterpret_cast<T *>(ptr)->~T();
     }
@@ -483,7 +483,7 @@ private:
      * @param last The pointer to one past the last element to delete.
      */
     template<typename T>
-    static void deleteElements(char * const first, char * const last)
+    static void delete_elements(char * const first, char * const last)
     {
         for (char * it = first; it != last; it += sizeof(T))
         {
@@ -499,7 +499,7 @@ private:
      * @param dst_first A pointer to the first element in the new location.
      */
     template<typename T>
-    static void copyElements(char const * const first, char const * const last, char * dst_first)
+    static void copy_elements(char const * const first, char const * const last, char * dst_first)
     {
         for (char const * it = first; it != last; it += sizeof(T), dst_first += sizeof(T))
         {
@@ -517,7 +517,7 @@ private:
      * @param dst_first A pointer to the first element in the new location.
      */
     template<typename T>
-    static void moveElements(char * const first, char * const last, char * dst_first)
+    static void move_elements(char * const first, char * const last, char * dst_first)
     {
         for (char * it = first; it != last; it += sizeof(T), dst_first += sizeof(T))
         {
@@ -542,7 +542,7 @@ private:
         assert(new_capacity >= size_);
 
         // Get the byte offsets for each array as well as the total number of bytes needed.
-        auto const [new_offsets, total_num_bytes] = getArrayOffsetsAndAllocationSize(new_capacity);
+        auto const [new_offsets, total_num_bytes] = calculate_array_offsets_and_allocation_size(new_capacity);
 
         // Allocate memory aligned to the first type.
         char * const new_data_ptr = new (std::align_val_t(alignof(value_type<0>))) char[total_num_bytes];
@@ -559,7 +559,7 @@ private:
             std::size_t type_index = 0;
             (
                 (
-                    moveElements<Types>(
+                    move_elements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types),
                         new_array_ptrs[type_index]),
@@ -578,7 +578,7 @@ private:
     }
 
     /*!
-     * Get the pointer offsets of each array and the total required memory
+     * Calculate the pointer offsets of each array and the total required memory
      * allocation size for a specific size of the vector.
      *
      * @param element_count The number of elements to get the size and
@@ -587,7 +587,7 @@ private:
      *      required memory allocation size.
      */
     constexpr std::pair<std::array<ptrdiff_t, sizeof...(Types)>, size_t>
-    getArrayOffsetsAndAllocationSize(size_type element_count)
+    calculate_array_offsets_and_allocation_size(size_type element_count)
     {
         // Get the byte sizes and alignments of the types.
         const auto sizes = std::array{(sizeof(Types) * element_count)...};
