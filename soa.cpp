@@ -7,22 +7,24 @@
 #include <string>
 #include <iostream>
 
+/*!
+ * Implementation of dynamic "Struct Of Arrays" vector with a single memory allocation.
+ */
 template <typename... Types>
 class SOAVector
 {
-public:
     /*!
      * Helper struct to map template argument index to the corresponding type.
      */
     template <std::size_t i, typename T, typename... Ts>
     struct IndexToType : IndexToType<i-1, Ts...>
     {
-        static_assert(i < sizeof...(Ts) + 1, "index out of bounds");
+        static_assert(i < sizeof...(Ts) + 1, "Index out of bounds");
     };
 
     template <typename T, typename... Ts>
     struct IndexToType<0, T, Ts...> { T value; };
-
+public:
     /*!
      * The value type of the N'th template argument.
      */
@@ -31,8 +33,18 @@ public:
 
     using size_type = std::size_t;
 
+    /*!
+     * Default constructor.
+     *
+     * Creates an empty SOA vector.
+     */
     SOAVector() = default;
 
+    /*!
+     * Create a SOA vector with a given size, default initializing all elements.
+     *
+     * @param size The number of elements.
+     */
     SOAVector(size_type size)
     {
         this->reserve(size);
@@ -53,6 +65,9 @@ public:
         }
     }
 
+    /*!
+     * Copy constructor.
+     */
     SOAVector(SOAVector const & other)
     {
         this->reserve(other.size());
@@ -74,6 +89,9 @@ public:
         size_ = other.size_;
     }
 
+    /*!
+     * Move constructor.
+     */
     SOAVector(SOAVector && other):
         array_ptrs_(other.array_ptrs_),
         size_(other.size_),
@@ -84,6 +102,9 @@ public:
         other.capacity_ = 0;
     }
 
+    /*!
+     * Destructor.
+     */
     ~SOAVector()
     {
         if (capacity_ == 0)
@@ -106,6 +127,9 @@ public:
         delete[] array_ptrs_[0];
     }
 
+    /*!
+     * Copy assignment operator.
+     */
     SOAVector<Types...> & operator=(SOAVector<Types...> const & other)
     {
         if (&other == this)
@@ -136,6 +160,9 @@ public:
         return *this;
     }
 
+    /*!
+     * Move assignment operator.
+     */
     SOAVector<Types...> & operator=(SOAVector<Types...> && other)
     {
         if (&other == this)
@@ -158,35 +185,72 @@ public:
         std::fill(other.array_ptrs_.begin(), other.array_ptrs_.end(), nullptr);
         other.size_ = 0;
         other.capacity_ = 0;
+
+        return *this;
     }
 
+    /*!
+     * Get whether the vector is empty.
+     *
+     * @return True if the vector is empty, otherwise false.
+     */
     bool empty() const noexcept
     {
         return this->size_ > 0;
     }
 
+    /*!
+     * Get the size, i.e. number of elements in the vector.
+     *
+     * @return The number of elements.
+     */
     size_type size() const noexcept
     {
         return this->size_;
     }
 
+    /*!
+     * Get the capacity, i.e. the number of elements the current memory
+     * allocation can fit.
+     *
+     * @return The capacity.
+     */
     size_type capacity() const noexcept
     {
         return capacity_;
     }
 
+    /*!
+     * Get the pointer to the first element of an array.
+     *
+     * @tparam TypeIndex The index of the array to get the pointer of.
+     * @return The pointer to the first element in the array.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> * data() noexcept
     {
         return reinterpret_cast<value_type<TypeIndex> *>(array_ptrs_[TypeIndex]);
     }
 
+    /*!
+     * Get the pointer to the first element of an array.
+     *
+     * @tparam TypeIndex The index of the array to get the pointer of.
+     * @return The pointer to the first element in the array.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> const * data() const noexcept
     {
         return reinterpret_cast<value_type<TypeIndex> const *>(array_ptrs_[TypeIndex]);
     }
 
+    /*!
+     * Get a reference to the element of a certain array at a given index.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @param index The index.
+     * @return A reference to the element at the position.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> & get(size_type index) noexcept
     {
@@ -194,6 +258,13 @@ public:
         return *(this->data<TypeIndex>() + index);
     }
 
+    /*!
+     * Get a reference to the element of a certain array at a given index.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @param index The index.
+     * @return A reference to the element at the position.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> const & get(size_type index) const noexcept
     {
@@ -201,43 +272,84 @@ public:
         return *(this->data<TypeIndex>() + index);
     }
 
+    /*!
+     * Get a reference to the first element of a certain array.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @return A reference to the first element in the array.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> & front() noexcept
     {
         return this->get<TypeIndex>(0);
     }
 
+    /*!
+     * Get a reference to the first element of a certain array.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @return A reference to the first element in the array.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> const & front() const noexcept
     {
         return this->get<TypeIndex>(0);
     }
 
+    /*!
+     * Get a reference to the last element of a certain array.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @return A reference to the last element in the array.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> & back() noexcept
     {
         return this->get<TypeIndex>(this->size_ - 1);
     }
 
+    /*!
+     * Get a reference to the last element of a certain array.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @return A reference to the last element in the array.
+     */
     template<size_type TypeIndex>
     value_type<TypeIndex> const & back() const noexcept
     {
         return this->get<TypeIndex>(this->size_ - 1);
     }
 
-
+    /*!
+     * Get a span over the elements in a certain array.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @return A span over the elements in the array.
+     */
     template<size_type TypeIndex>
     std::span<value_type<TypeIndex> const> span() const noexcept
     {
         return std::span<value_type<TypeIndex> const>(this->data<TypeIndex>(), this->size_);
     }
 
+    /*!
+     * Get a span over the elements in a certain array.
+     *
+     * @tparam TypeIndex The index of the array.
+     * @return A span over the elements in the array.
+     */
     template<size_type TypeIndex>
     std::span<value_type<TypeIndex>> span() noexcept
     {
         return std::span<value_type<TypeIndex>>(this->data<TypeIndex>(), this->size_);
     }
 
+    /*!
+     * Clears the contents, deleting all elements of all arrays.
+     *
+     * Calling 'clear()' does not change the memory allocation and change the
+     * capacity.
+     */
     void clear()
     {
         if (size_ > 0)
@@ -256,8 +368,14 @@ public:
         size_ = 0;
     }
 
+    /*!
+     * Adds a set of elements at the end of each array.
+     *
+     * @param args The elements to add.
+     */
     void push_back(Types&&... args)
     {
+        // Grow the capacity if we have to.
         if (size_ + 1 > capacity_)
         {
             this->reserve(this->size_ * growth_factor + 1);
@@ -274,6 +392,9 @@ public:
         ++size_;
     }
 
+    /*!
+     * Remove the last element of each array.
+     */
     void pop_back()
     {
         assert(size_ > 0);
@@ -289,6 +410,12 @@ public:
         --size_;
     }
 
+    /*!
+     * Reserve storage.
+     *
+     * @param new_capacity The new capacity of the arrays. Will only
+     *      reallocate if 'new_capacity' is larger than the current capacity.
+     */
     void reserve(size_type new_capacity)
     {
         if (new_capacity > capacity_)
@@ -297,6 +424,9 @@ public:
         }
     }
 
+    /*!
+     * Reduce the memory allocation to fit only the current size.
+     */
     void shrink_to_fit()
     {
         if (capacity_ > size_)
@@ -323,18 +453,35 @@ private:
         }
     }
 
+    /*!
+     * Create an element with a specific value in existing memory allocation.
+     *
+     * @param ptr The pointer to where the element should be created.
+     * @param value The value of the element.
+     */
     template<typename T>
     static void createElement(char * const ptr, T&& value)
     {
         new(ptr) T(std::forward<T>(value));
     }
 
+    /*!
+     * Delete an element at a specific location in existing memory allocation.
+     *
+     * @param ptr The pointer to the element.
+     */
     template<typename T>
     static void deleteElement(char * const ptr)
     {
         reinterpret_cast<T *>(ptr)->~T();
     }
 
+    /*!
+     * Call destructor on a range of elements.
+     *
+     * @param first The pointer to the first element to delete.
+     * @param last The pointer to one past the last element to delete.
+     */
     template<typename T>
     static void deleteElements(char * const first, char * const last)
     {
@@ -344,6 +491,13 @@ private:
         }
     }
 
+    /*!
+     * Copy a range of elements to a new location in an existing memory allocation.
+     *
+     * @param first A pointer to the first element to copy.
+     * @param last A pointer to one past the last element to copy.
+     * @param dst_first A pointer to the first element in the new location.
+     */
     template<typename T>
     static void copyElements(char const * const first, char const * const last, char * dst_first)
     {
@@ -355,6 +509,13 @@ private:
         }
     }
 
+    /*!
+     * Move a range of elements to a new location in an existing memory allocation.
+     *
+     * @param first A pointer to the first element to move.
+     * @param last A pointer to one past the last element to move.
+     * @param dst_first A pointer to the first element in the new location.
+     */
     template<typename T>
     static void moveElements(char * const first, char * const last, char * dst_first)
     {
@@ -368,6 +529,14 @@ private:
         }
     }
 
+    /*!
+     * Reallocate the data to a new memory allocation of a specific capacity.
+     *
+     * This will allocate a new chunk of memory, move the elements there,
+     * destruct the original elements and free the original memory allocation.
+     *
+     * @param new_capacity The capacity of the new memory allocation.
+     */
     void reallocate(size_type new_capacity)
     {
         assert(new_capacity >= size_);
@@ -408,6 +577,15 @@ private:
         capacity_ = new_capacity;
     }
 
+    /*!
+     * Get the pointer offsets of each array and the total required memory
+     * allocation size for a specific size of the vector.
+     *
+     * @param element_count The number of elements to get the size and
+     *      offsets for.
+     * @return An array with the pointer offsets of each array and the
+     *      required memory allocation size.
+     */
     constexpr std::pair<std::array<ptrdiff_t, sizeof...(Types)>, size_t>
     getArrayOffsetsAndAllocationSize(size_type element_count)
     {
