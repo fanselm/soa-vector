@@ -43,7 +43,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    defaultInitializeData<Types>(
+                    defaultInitializeElements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
@@ -62,7 +62,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    copyData<Types>(
+                    copyElements<Types>(
                         other.array_ptrs_[type_index],
                         other.array_ptrs_[type_index] + other.size_ * sizeof(Types),
                         this->array_ptrs_[type_index]),
@@ -95,7 +95,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    deleteData<Types>(
+                    deleteElements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
@@ -122,7 +122,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    copyData<Types>(
+                    copyElements<Types>(
                         other.array_ptrs_[type_index],
                         other.array_ptrs_[type_index] + other.size_ * sizeof(Types),
                         this->array_ptrs_[type_index]),
@@ -245,7 +245,7 @@ public:
             std::size_t type_index = 0;
             (
                 (
-                    deleteData<Types>(
+                    deleteElements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types)),
                     ++type_index
@@ -306,8 +306,15 @@ public:
     }
 
 private:
+    /*!
+     * Create a range of default initialized elements in existing memory allocation.
+     *
+     * @param first The pointer to where the first element should be created.
+     * @param last The pointer to where one past the last last element should
+     *      be created.
+     */
     template<typename T>
-    static void defaultInitializeData(char * const first, char * const last)
+    static void defaultInitializeElements(char * const first, char * const last)
     {
         for (char * it = first; it != last; it += sizeof(T))
         {
@@ -329,7 +336,7 @@ private:
     }
 
     template<typename T>
-    static void deleteData(char * const first, char * const last)
+    static void deleteElements(char * const first, char * const last)
     {
         for (char * it = first; it != last; it += sizeof(T))
         {
@@ -338,7 +345,7 @@ private:
     }
 
     template<typename T>
-    static void copyData(char const * const first, char const * const last, char * dst_first)
+    static void copyElements(char const * const first, char const * const last, char * dst_first)
     {
         for (char const * it = first; it != last; it += sizeof(T), dst_first += sizeof(T))
         {
@@ -349,7 +356,7 @@ private:
     }
 
     template<typename T>
-    static void moveData(char * const first, char * const last, char * dst_first)
+    static void moveElements(char * const first, char * const last, char * dst_first)
     {
         for (char * it = first; it != last; it += sizeof(T), dst_first += sizeof(T))
         {
@@ -383,7 +390,7 @@ private:
             std::size_t type_index = 0;
             (
                 (
-                    moveData<Types>(
+                    moveElements<Types>(
                         array_ptrs_[type_index],
                         array_ptrs_[type_index] + size_ * sizeof(Types),
                         new_array_ptrs[type_index]),
