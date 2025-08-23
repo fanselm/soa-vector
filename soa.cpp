@@ -1,11 +1,11 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
-#include <span>
 #include <new>
+#include <span>
 
-#include <string>
 #include <iostream>
+#include <string>
 
 /*!
  * Implementation of dynamic "Struct Of Arrays" vector with a single memory allocation.
